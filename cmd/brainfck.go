@@ -47,14 +47,6 @@ func (lex *Lexer) nextToken() int {
 	return token
 }
 
-func (lex *Lexer) peek() int {
-	pos := lex.pos
-	token := lex.nextToken()
-	lex.pos = pos
-
-	return token
-}
-
 // Operation types
 const (
 	Right = iota
@@ -68,20 +60,16 @@ const (
 )
 
 type Operation struct {
-	command int // Operation type
-	operand int // How many times to perform operation
-}
-
-func (op *Operation) print() {
-	fmt.Println("Command:", string(COMMANDS[op.command]), "Operand:", op.operand)
+	command int
+	operand int
 }
 
 func parse(lex Lexer) ([]Operation, error) {
 	ops := []Operation{}
 	stack := []int{}
 
+	token := lex.nextToken()
 	for {
-		token := lex.nextToken()
 		if token == Eof {
 			break
 		}
@@ -89,20 +77,18 @@ func parse(lex Lexer) ([]Operation, error) {
 		switch token {
 		case RArrow, LArrow, Plus, Minus, Dot, Comma:
 			streak := 1
-			for {
-				next := lex.peek()
-				if next == token {
-					streak++
-					lex.nextToken()
-				} else {
-					break
-				}
+			next := lex.nextToken()
+			for next == token {
+				streak++
+				next = lex.nextToken()
 			}
 
 			ops = append(ops, Operation{command: token, operand: streak})
+			token = next
 		case LBracket:
 			ops = append(ops, Operation{command: LBracket, operand: -1})
 			stack = append(stack, len(ops)-1)
+			token = lex.nextToken()
 		case RBracket:
 			if len(stack) == 0 {
 				return nil, errors.New("Loop mismatch")
@@ -111,6 +97,7 @@ func parse(lex Lexer) ([]Operation, error) {
 			stack = stack[:len(stack)-1]
 			ops = append(ops, Operation{command: RBracket, operand: last + 1})
 			ops[last].operand = len(ops)
+			token = lex.nextToken()
 		}
 	}
 
@@ -192,7 +179,7 @@ func main() {
 
 	source, err := os.ReadFile(filepath)
 	if err != nil {
-		fmt.Println("Could not find file:", filepath)
+		fmt.Println(err)
 	}
 
 	lexer := NewLexer(source)

@@ -11,3 +11,6 @@ To build the executable run `go build ./cmd/brainfuck.go`
 ## Usage
 
 To start executing a script run `./brainfck script.bf`
+
+## Test files
+You can find some test scripts in `/test`.
