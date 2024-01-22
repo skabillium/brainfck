@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -75,7 +76,7 @@ func (op *Operation) print() {
 	fmt.Println("Command:", string(COMMANDS[op.command]), "Operand:", op.operand)
 }
 
-func parse(lex Lexer) []Operation {
+func parse(lex Lexer) ([]Operation, error) {
 	ops := []Operation{}
 	stack := []int{}
 
@@ -103,6 +104,9 @@ func parse(lex Lexer) []Operation {
 			ops = append(ops, Operation{command: LBracket, operand: -1})
 			stack = append(stack, len(ops)-1)
 		case RBracket:
+			if len(stack) == 0 {
+				return nil, errors.New("Loop mismatch")
+			}
 			last := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
 			ops = append(ops, Operation{command: RBracket, operand: last + 1})
@@ -110,10 +114,10 @@ func parse(lex Lexer) []Operation {
 		}
 	}
 
-	return ops
+	return ops, nil
 }
 
-func interpret(ops []Operation) {
+func interpret(ops []Operation) error {
 	memory := make([]int, 32)
 	head := 0
 	ip := 0
@@ -124,7 +128,7 @@ func interpret(ops []Operation) {
 		case Right:
 			head += op.operand
 			if head > MAX_MEMORY_SIZE {
-				panic("Overflow")
+				return errors.New("Memory overflow")
 			}
 			if head > len(memory)-1 {
 				memory = append(memory, make([]int, head-len(memory)+1)...)
@@ -133,7 +137,7 @@ func interpret(ops []Operation) {
 		case Left:
 			head -= op.operand
 			if head < 0 {
-				panic("Underflow")
+				return errors.New("Memory underflow")
 			}
 			ip++
 		case Incr:
@@ -154,20 +158,18 @@ func interpret(ops []Operation) {
 				fmt.Scanln(&input)
 				val, err := strconv.Atoi(input)
 				if err != nil {
-					panic("Cannot convert to int")
+					return errors.New(fmt.Sprintf("Cannot convert \"%s\" to int", input))
 				}
 				memory[head] = val
 			}
 			ip++
 		case JumpIfZero:
-			// println("JumpIfZero")
 			if memory[head] == 0 {
 				ip = op.operand
 			} else {
 				ip++
 			}
 		case JumpIfNonZero:
-			// println("JumpIfNonZero")
 			if memory[head] != 0 {
 				ip = op.operand
 			} else {
@@ -176,8 +178,9 @@ func interpret(ops []Operation) {
 		case Eof:
 			break
 		}
-
 	}
+
+	return nil
 }
 
 func main() {
@@ -193,11 +196,13 @@ func main() {
 	}
 
 	lexer := NewLexer(source)
-	ops := parse(*lexer)
+	ops, err := parse(*lexer)
+	if err != nil {
+		fmt.Println("Parsing Error:", err)
+	}
 
-	// for _, op := range ops {
-	// 	op.print()
-	// }
-
-	interpret(ops)
+	err = interpret(ops)
+	if err != nil {
+		fmt.Println("Runtime Error:", err)
+	}
 }
