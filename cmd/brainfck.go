@@ -24,27 +24,36 @@ const (
 	Eof
 )
 
+type Token struct {
+	kind int
+	pos  int
+}
+
 type Lexer struct {
-	pos    int
 	source []byte
+	pos    int
+	lines  int
 }
 
 func NewLexer(source []byte) *Lexer {
-	return &Lexer{pos: 0, source: source}
+	return &Lexer{source: source, pos: 0, lines: 0}
 }
 
-func (lex *Lexer) nextToken() int {
+func (lex *Lexer) nextToken() Token {
 	for lex.pos < len(lex.source) && !strings.Contains(COMMANDS, string(lex.source[lex.pos])) {
+		if lex.source[lex.pos] == '\n' {
+			lex.lines++
+		}
 		lex.pos++
 	}
 
 	if lex.pos >= len(lex.source) {
-		return Eof
+		return Token{kind: Eof, pos: len(lex.source)}
 	}
 
-	token := strings.Index(COMMANDS, string(lex.source[lex.pos]))
+	kind := strings.Index(COMMANDS, string(lex.source[lex.pos]))
 	lex.pos++
-	return token
+	return Token{kind: kind, pos: lex.pos - 1}
 }
 
 // Operation types
@@ -64,17 +73,30 @@ type Operation struct {
 	operand int
 }
 
+func getPosition(source []byte, offset int) (int, int) {
+	// Count new lines up to that position
+	line := 1
+	lastline := 1
+	for i := 0; i < offset; i++ {
+		if source[i] == '\n' {
+			line++
+			lastline = i
+		}
+	}
+	return line, offset - lastline
+}
+
 func parse(lex Lexer) ([]Operation, error) {
 	ops := []Operation{}
 	stack := []int{}
 
 	token := lex.nextToken()
 	for {
-		if token == Eof {
+		if token.kind == Eof {
 			break
 		}
 
-		switch token {
+		switch token.kind {
 		case RArrow, LArrow, Plus, Minus, Dot, Comma:
 			streak := 1
 			next := lex.nextToken()
@@ -83,7 +105,7 @@ func parse(lex Lexer) ([]Operation, error) {
 				next = lex.nextToken()
 			}
 
-			ops = append(ops, Operation{command: token, operand: streak})
+			ops = append(ops, Operation{command: token.kind, operand: streak})
 			token = next
 		case LBracket:
 			ops = append(ops, Operation{command: LBracket, operand: -1})
@@ -91,7 +113,8 @@ func parse(lex Lexer) ([]Operation, error) {
 			token = lex.nextToken()
 		case RBracket:
 			if len(stack) == 0 {
-				return nil, errors.New("Loop mismatch")
+				line, col := getPosition(lex.source, token.pos)
+				return nil, errors.New(fmt.Sprintf("%d:%d Loop mismatch", line, col))
 			}
 			last := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -170,6 +193,19 @@ func interpret(ops []Operation) error {
 	return nil
 }
 
+func getFilename(filepath string) string {
+	i := len(filepath) - 1
+	for i > 0 {
+		if filepath[i] == '\\' || filepath[i] == '/' {
+			i++
+			break
+		}
+		i--
+	}
+
+	return filepath[i:]
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Expected file to interpret")
@@ -185,7 +221,7 @@ func main() {
 	lexer := NewLexer(source)
 	ops, err := parse(*lexer)
 	if err != nil {
-		fmt.Println("Parsing Error:", err)
+		fmt.Printf("%s:%s\n", getFilename(filepath), err)
 	}
 
 	err = interpret(ops)
