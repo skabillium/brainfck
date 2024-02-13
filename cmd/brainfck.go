@@ -76,14 +76,16 @@ type Operation struct {
 func getPosition(source []byte, offset int) (int, int) {
 	// Count new lines up to that position
 	line := 1
-	lastline := 1
+	column := 1
 	for i := 0; i < offset; i++ {
 		if source[i] == '\n' {
 			line++
-			lastline = i
+			column = 1
+			continue
 		}
+		column++
 	}
-	return line, offset - lastline
+	return line, column
 }
 
 func parse(lex Lexer) ([]Operation, error) {
@@ -100,7 +102,7 @@ func parse(lex Lexer) ([]Operation, error) {
 		case RArrow, LArrow, Plus, Minus, Dot, Comma:
 			streak := 1
 			next := lex.nextToken()
-			for next == token {
+			for next.kind == token.kind {
 				streak++
 				next = lex.nextToken()
 			}
