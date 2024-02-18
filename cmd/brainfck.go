@@ -197,19 +197,6 @@ run:
 	return nil
 }
 
-func getFilename(filepath string) string {
-	i := len(filepath) - 1
-	for i > 0 {
-		if filepath[i] == '\\' || filepath[i] == '/' {
-			i++
-			break
-		}
-		i--
-	}
-
-	return filepath[i:]
-}
-
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Expected file to interpret")
