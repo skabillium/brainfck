@@ -28,7 +28,6 @@ func TestLexer(t *testing.T) {
 		if token.kind != expected[i] {
 			t.Fatalf("Expected '%s', received %d", string(source[i]), token.kind)
 		}
-
 		i++
 	}
 }
@@ -77,27 +76,6 @@ func TestInterpreter(t *testing.T) {
 		t.Fatalf("Expected '%s' received '%s'", expected, out)
 	}
 
-}
-
-// GetFilename
-func TestGetFilename(t *testing.T) {
-	paths := []string{
-		// Files
-		"main.go",
-		// Relative
-		"./main.go",
-		// Unix
-		"/path/to/main.go",
-		// Windows
-		"C:\\\\Users\\main.go",
-	}
-
-	for _, path := range paths {
-		file := getFilename(path)
-		if file != "main.go" {
-			t.Fatalf("Failed case for path %s, expected %s", path, file)
-		}
-	}
 }
 
 // GetPosition

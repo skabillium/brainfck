@@ -1,9 +1,9 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -116,7 +116,7 @@ func parse(lex Lexer) ([]Operation, error) {
 		case RBracket:
 			if len(stack) == 0 {
 				line, col := getPosition(lex.source, token.pos)
-				return nil, errors.New(fmt.Sprintf("%d:%d Loop mismatch", line, col))
+				return nil, fmt.Errorf("%d:%d Loop mismatch", line, col)
 			}
 			last := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -134,13 +134,15 @@ func interpret(ops []Operation) error {
 	head := 0
 	ip := 0
 
+run:
 	for ip < len(ops) {
 		op := ops[ip]
 		switch op.command {
 		case Right:
 			head += op.operand
 			if head > MAX_MEMORY_SIZE {
-				return errors.New("Memory overflow")
+				return fmt.Errorf("memory overflow")
+
 			}
 			if head > len(memory)-1 {
 				memory = append(memory, make([]int, head-len(memory)+1)...)
@@ -149,7 +151,7 @@ func interpret(ops []Operation) error {
 		case Left:
 			head -= op.operand
 			if head < 0 {
-				return errors.New("Memory underflow")
+				return fmt.Errorf("memory underflow")
 			}
 			ip++
 		case Incr:
@@ -170,7 +172,7 @@ func interpret(ops []Operation) error {
 				fmt.Scanln(&input)
 				val, err := strconv.Atoi(input)
 				if err != nil {
-					return errors.New(fmt.Sprintf("Cannot convert \"%s\" to int", input))
+					return fmt.Errorf(fmt.Sprintf("Cannot convert \"%s\" to int", input))
 				}
 				memory[head] = val
 			}
@@ -188,7 +190,7 @@ func interpret(ops []Operation) error {
 				ip++
 			}
 		case Eof:
-			break
+			break run
 		}
 	}
 
@@ -223,7 +225,8 @@ func main() {
 	lexer := NewLexer(source)
 	ops, err := parse(*lexer)
 	if err != nil {
-		fmt.Printf("%s:%s\n", getFilename(filepath), err)
+		base := path.Base(filepath)
+		fmt.Printf("%s:%s\n", base, err)
 	}
 
 	err = interpret(ops)
